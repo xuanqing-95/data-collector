@@ -102,43 +102,16 @@ async def main():
         print("没有采集到数据")
         return
 
-    # ===== 始终保存到文件 =====
+    # 保存到文件
     filename = f"data_{datetime.now().strftime('%Y%m%d')}.json"
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(all_data, f, ensure_ascii=False, indent=2)
     print(f"已保存到 {filename}")
-    # ===== 保存结束 =====
-
-    # 写入飞书（如果有配置）
-    if not FEISHU_APP_ID or not FEISHU_APP_SECRET:
-        print("飞书配置不完整，跳过写入")
-    else:
-        token = get_feishu_access_token()
-        if not token:
-            print("获取飞书token失败")
-        else:
-            success_count = 0
-            for item in all_data:
-                record = {
-                    "选题来源": "热点追踪",
-                    "关键词": item.get("platform", ""),
-                    "标题草稿": item.get("title", ""),
-                    "正文内容": item.get("desc", ""),
-                    "参考链接": item.get("url", ""),
-                    "目标博主": item.get("author", ""),
-                    "点赞数": item.get("likes", 0),
-                    "评论数": item.get("comments", 0),
-                    "收藏数": item.get("favorites", 0),
-                    "内容状态": "待制作",
-                    "优先级": "P2-中"
-                }
-                try:
-                    result = create_record(token, record)
-                    if result.get("code") == 0:
-                        success_count += 1
-                except Exception as e:
-                    print(f"写入失败: {e}")
-            print(f"=== 完成，写入 {success_count}/{len(all_data)} 条 ===")
+    
+    # 输出数据到日志
+    print("=== DATA_JSON_START ===")
+    print(json.dumps(all_data, ensure_ascii=False))
+    print("=== DATA_JSON_END ===")
 
 if __name__ == "__main__":
     asyncio.run(main())
