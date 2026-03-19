@@ -36,4 +36,4 @@ jobs:
           git config --global user.name "Data Collector"
           git add data_*.json
           git commit -m "Update data $(date +%Y-%m-%d)" || echo "No new data"
-          git push 
+          git push          
