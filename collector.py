@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 自媒体数据采集器 - GitHub Actions 版本
-直接抓取各平台数据，不依赖 Worker
+直接抓取各平台数据，写入飞书
 """
 
 import os
@@ -52,6 +52,7 @@ def fetch_bilibili():
                     "author": item.get("owner", {}).get("name", ""),
                     "views": item.get("stat", {}).get("view", 0),
                     "likes": item.get("stat", {}).get("like", 0),
+                    "desc": item.get("desc", "")[:200],
                 })
         return results
     except Exception as e:
@@ -102,7 +103,7 @@ def main():
         print("没有数据，退出")
         return
     
-    # 输出 JSON 供后续处理
+    # 输出 JSON
     print("\n=== DATA_JSON_START ===")
     print(json.dumps(all_data, ensure_ascii=False, indent=2))
     print("=== DATA_JSON_END ===")
@@ -115,17 +116,14 @@ def main():
     
     print(f"\n飞书 token 获取成功，开始写入...")
     
-    # 写入飞书（只写 B站数据作为示例）
+    # 写入飞书 - 关键：字段名必须匹配飞书表格！
     for item in bilibili_data[:5]:
         record = {
-            "平台": item.get("platform", ""),
-            "标题": item.get("title", ""),
-            "链接": item.get("url", ""),
-            "作者": item.get("author", ""),
-            "播放量": item.get("views", 0),
-            "点赞数": item.get("likes", 0),
+            "选题标题": item.get("title", "")[:100],
+            "来源平台": item.get("platform", ""),  # 单选：B站/微博
+            "原始链接": item.get("url", ""),
+            "内容摘要": item.get("desc", "")[:500],
             "采集时间": int(datetime.now().timestamp() * 1000),
-            "状态": "待分析"
         }
         result = create_record(token, record)
         if result.get("code") == 0:
