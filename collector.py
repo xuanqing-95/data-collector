@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
 自媒体数据采集器 - GitHub Actions 版本
-直接抓取各平台数据，写入飞书
+通过 Worker 抓数据，绕过跨境限制
 """
 
 import os
 import json
 import requests
 from datetime import datetime
+
+# Worker URL
+WORKER_URL = "https://silent-scene-f153.meifangyuan2.workers.dev"
 
 # 飞书多维表格
 FEISHU_APP_TOKEN = "NdpBbD8jray5fDs77gScXZ9vnId"
@@ -35,10 +38,10 @@ def create_record(token, record_data):
         print(f"写入失败: {e}")
         return {"code": -1}
 
-# B站热门
+# 通过 Worker 抓 B站
 def fetch_bilibili():
     try:
-        url = "https://api.bilibili.com/x/web-interface/popular"
+        url = f"{WORKER_URL}/bilibili"
         resp = requests.get(url, timeout=30)
         data = resp.json()
         
@@ -59,53 +62,21 @@ def fetch_bilibili():
         print(f"B站采集失败: {e}")
         return []
 
-# 微博热搜
-def fetch_weibo():
-    try:
-        url = "https://weibo.com/ajax/side/hotSearch"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers, timeout=30)
-        data = resp.json()
-        
-        results = []
-        if data.get("ok") == 1:
-            for item in data.get("data", {}).get("realtime", [])[:10]:
-                results.append({
-                    "platform": "微博",
-                    "title": item.get("word", ""),
-                    "url": f"https://s.weibo.com/weibo?q={item.get('word', '')}",
-                    "views": item.get("num", 0),
-                })
-        return results
-    except Exception as e:
-        print(f"微博采集失败: {e}")
-        return []
-
 def main():
     print(f"=== 数据采集开始 {datetime.now()} ===")
     
-    all_data = []
-    
-    # 抓各平台
+    # 通过 Worker 抓 B站
     print("抓取 B站...")
     bilibili_data = fetch_bilibili()
     print(f"  B站: {len(bilibili_data)} 条")
-    all_data.extend(bilibili_data)
     
-    print("抓取 微博...")
-    weibo_data = fetch_weibo()
-    print(f"  微博: {len(weibo_data)} 条")
-    all_data.extend(weibo_data)
-    
-    print(f"\n总计: {len(all_data)} 条数据")
-    
-    if not all_data:
+    if not bilibili_data:
         print("没有数据，退出")
         return
     
     # 输出 JSON
     print("\n=== DATA_JSON_START ===")
-    print(json.dumps(all_data, ensure_ascii=False, indent=2))
+    print(json.dumps(bilibili_data, ensure_ascii=False, indent=2))
     print("=== DATA_JSON_END ===")
     
     # 获取飞书 token
@@ -116,11 +87,11 @@ def main():
     
     print(f"\n飞书 token 获取成功，开始写入...")
     
-    # 写入飞书 - 关键：字段名必须匹配飞书表格！
+    # 写入飞书
     for item in bilibili_data[:5]:
         record = {
             "选题标题": item.get("title", "")[:100],
-            "来源平台": item.get("platform", ""),  # 单选：B站/微博
+            "来源平台": item.get("platform", ""),
             "原始链接": item.get("url", ""),
             "内容摘要": item.get("desc", "")[:500],
             "采集时间": int(datetime.now().timestamp() * 1000),
