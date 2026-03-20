@@ -19,11 +19,15 @@ FEISHU_APP_ID = os.getenv("FEISHU_APP_ID")
 FEISHU_APP_SECRET = os.getenv("FEISHU_APP_SECRET")
 
 def get_feishu_access_token():
+    print(f"FEISHU_APP_ID: {FEISHU_APP_ID}")
+    print(f"FEISHU_APP_SECRET: {FEISHU_APP_SECRET[:10] if FEISHU_APP_SECRET else 'None'}...")
     url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     data = {"app_id": FEISHU_APP_ID, "app_secret": FEISHU_APP_SECRET}
     try:
         resp = requests.post(url, json=data, timeout=10)
-        return resp.json().get("tenant_access_token")
+        result = resp.json()
+        print(f"Token 响应: {result}")
+        return result.get("tenant_access_token")
     except Exception as e:
         print(f"获取 token 失败: {e}")
         return None
@@ -33,7 +37,9 @@ def create_record(token, record_data):
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     try:
         resp = requests.post(url, headers=headers, json={"fields": record_data}, timeout=10)
-        return resp.json()
+        result = resp.json()
+        print(f"写入响应: {result}")
+        return result
     except Exception as e:
         print(f"写入失败: {e}")
         return {"code": -1}
@@ -74,21 +80,18 @@ def main():
         print("没有数据，退出")
         return
     
-    # 输出 JSON
-    print("\n=== DATA_JSON_START ===")
-    print(json.dumps(bilibili_data, ensure_ascii=False, indent=2))
-    print("=== DATA_JSON_END ===")
-    
     # 获取飞书 token
+    print("\n获取飞书 token...")
     token = get_feishu_access_token()
     if not token:
-        print("无法获取飞书 token")
+        print("无法获取飞书 token，退出")
         return
     
-    print(f"\n飞书 token 获取成功，开始写入...")
+    print(f"飞书 token 获取成功: {token[:20]}...")
     
     # 写入飞书
-    for item in bilibili_data[:5]:
+    print("\n开始写入飞书...")
+    for item in bilibili_data[:3]:
         record = {
             "选题标题": item.get("title", "")[:100],
             "来源平台": item.get("platform", ""),
@@ -96,9 +99,10 @@ def main():
             "内容摘要": item.get("desc", "")[:500],
             "采集时间": int(datetime.now().timestamp() * 1000),
         }
+        print(f"\n写入: {item['title'][:30]}...")
         result = create_record(token, record)
         if result.get("code") == 0:
-            print(f"  写入成功: {item['title'][:20]}...")
+            print(f"  写入成功!")
         else:
             print(f"  写入失败: {result}")
     
